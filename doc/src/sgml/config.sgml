@@ -1052,6 +1052,37 @@ include 'filename'
       </listitem>
      </varlistentry>
 
+     <varlistentry id="guc-huge-tlb-pages" xreflabel="huge_tlb_pages">
+      <term><varname>huge_tlb_pages</varname> (<type>enum</type>)</term>
+      <indexterm>
+       <primary><varname>huge_tlb_pages</> configuration parameter</primary>
+      </indexterm>
+      <listitem>
+       <para>
+        Enables/disables the use of huge tlb pages. Valid values are
+        <literal>on</literal>, <literal>off</literal> and <literal>try</literal>.
+        The default value is <literal>try</literal>.
+       </para>
+
+       <para>
+        With <varname>huge_tlb_pages</varname> set to <literal>on</literal>
+        <symbol>mmap()</symbol> will be called with <symbol>MAP_HUGETLB</symbol>.
+        If the call fails the server will fail fatally.
+       </para>
+
+       <para>
+        With <varname>huge_tlb_pages</varname> set to <literal>off</literal> we
+        will not use <symbol>MAP_HUGETLB</symbol> at all.
+       </para>
+
+       <para>
+        With <varname>huge_tlb_pages</varname> set to <literal>try</literal>
+        we will try to use <symbol>MAP_HUGETLB</symbol> and fall back to
+        <symbol>mmap()</symbol> without <symbol>MAP_HUGETLB</symbol>.
+       </para>
+      </listitem>
+     </varlistentry>
+
      <varlistentry id="guc-temp-buffers" xreflabel="temp_buffers">
       <term><varname>temp_buffers</varname> (<type>integer</type>)</term>
       <indexterm>

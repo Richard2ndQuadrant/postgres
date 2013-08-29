@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #ifdef HAVE_SYSLOG
 #include <syslog.h>
 #endif
@@ -379,6 +380,22 @@ static const struct config_enum_entry synchronous_commit_options[] = {
 };
 
 /*
+ * huge_tlb_pages may be on|off|try, where try is the default
+ * on: try to mmap() with MAP_HUGETLB and fail when mmap() fails
+ * off: do not try tp mmap() with MAP_HUGETLB
+ * try: try to mmap() with MAP_HUGETLB and fallback to mmap()
+ *      w/o MAP_HUGETLB
+ */
+static const struct config_enum_entry huge_tlb_options[] = {
+#ifdef MAP_HUGETLB
+	{"on", HUGE_TLB_ON, false},
+	{"try", HUGE_TLB_TRY, false},
+#endif
+	{"off", HUGE_TLB_OFF, false},
+	{NULL, 0, false}
+};
+
+/*
  * Options for enum values stored in other modules
  */
 extern const struct config_enum_entry wal_level_options[];
@@ -436,6 +453,12 @@ char	   *application_name;
 int			tcp_keepalives_idle;
 int			tcp_keepalives_interval;
 int			tcp_keepalives_count;
+
+#ifdef MAP_HUGETLB
+int huge_tlb_pages = HUGE_TLB_TRY;
+#else
+int huge_tlb_pages = HUGE_TLB_OFF;
+#endif
 
 /*
  * These variables are all dummies that don't do anything, except in some
@@ -3316,6 +3339,26 @@ static struct config_enum ConfigureNamesEnum[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"huge_tlb_pages",
+#ifdef MAP_HUGETLB
+			PGC_SUSET,
+#else
+			PGC_INTERNAL,
+#endif
+			RESOURCES_MEM,
+			gettext_noop("Enable/disable the use of the hugepages feature"),
+			NULL
+		},
+		&huge_tlb_pages,
+#ifdef MAP_HUGETLB
+		HUGE_TLB_TRY,
+#else
+		HUGE_TLB_OFF,
+#endif
+		huge_tlb_options,
+		NULL, NULL, NULL
+	},
 
 	/* End-of-list marker */
 	{
