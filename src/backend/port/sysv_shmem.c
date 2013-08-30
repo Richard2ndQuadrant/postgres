@@ -66,15 +66,10 @@ typedef int IpcMemoryId;		/* shared memory ID returned by shmget(2) */
 #endif
 
 #ifdef MAP_HUGETLB
-#  ifdef __ia64__
-#    define PG_HUGETLB_BASE_ADDR (void *)(0x8000000000000000UL)
-#    define PG_MAP_HUGETLB (MAP_HUGETLB|MAP_FIXED)
-#  else
-#    define PG_HUGETLB_BASE_ADDR (void *)(0x0UL)
-#    define PG_MAP_HUGETLB MAP_HUGETLB
-#  endif
+#define PG_HUGETLB_BASE_ADDR (void *)(0x0UL)
+#define PG_MAP_HUGETLB MAP_HUGETLB
 #else
-#  define PG_MAP_HUGETLB 0
+#define PG_MAP_HUGETLB 0
 #endif
 
 
@@ -442,7 +437,7 @@ InternalGetFreeHugepagesCount(const char *name)
  * Attempt to get a valid hugepage size from /sys/kernel/mm/hugepages/ by
  * reading directory contents
  * Will fail (return -1) if the directory could not be opened or no valid
- * page sizes are available. Will return the biggest hugepage size on
+ * page sizes are available. Will return the smallest hugepage size on
  * success.
  *
  */
@@ -452,6 +447,7 @@ InternalGetHugepageSize()
 	struct dirent *ent;
 	DIR *dir = opendir(HUGE_PAGE_INFO_DIR);
 	long smallest_size = -1, size;
+	bool valid_size_found = false;
 	char *ptr;
 
 	if (dir == NULL)
@@ -484,10 +480,10 @@ InternalGetHugepageSize()
 				size *= 1024;
 			}
 
-			if ((smallest_size == -1 || size < smallest_size)
-				&& InternalGetFreeHugepagesCount(ent->d_name) > 0)
-			{
-				smallest_size = size;
+			if ((smallest_size == -1 || size < smallest_size)) {
+				valid_size_found = true;
+				if(InternalGetFreeHugepagesCount(ent->d_name) > 0)
+					smallest_size = size;
 			}
 		}
 	}
@@ -496,7 +492,12 @@ InternalGetHugepageSize()
 
 	if (smallest_size == -1)
 	{
-		ereport(huge_tlb_pages == HUGE_TLB_TRY ? DEBUG1 : WARNING,
+		if(valid_size_found)
+			ereport(huge_tlb_pages == HUGE_TLB_TRY ? DEBUG1 : WARNING,
+					(errmsg("No free hugepages"),
+					 errhint("There were no free huge pages of any size")));
+		else
+			ereport(huge_tlb_pages == HUGE_TLB_TRY ? DEBUG1 : WARNING,
 				(errmsg("Could not find a valid hugepage size"),
 				 errhint("This error usually means that either CONFIG_HUGETLB_PAGE "
 						 "is not in kernel or that your architecture does not "
